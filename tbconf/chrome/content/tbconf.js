@@ -1,4 +1,4 @@
-/**
+﻿/**
  *	https://developer.mozilla.org/en/XPCOM_Interface_Reference/nsILocalFile
  *	https://developer.mozilla.org/en/XPCOM_Interface_Reference/nsIZipReader
  *	https://developer.mozilla.org/en/XMLHttpRequest
@@ -214,6 +214,21 @@ function msec(min) { /* milliseconds */
 
 function sec(msec) { /* seconds */
 	return parseInt(msec/1000);
+}
+
+function showDialog(){
+	var params = {inn:{name:"foo", description:"bar", enabled:true}, out:null};
+	window.openDialog("chrome://tbconf/content/tbconfdialog.xul", "",
+    "chrome, dialog, modal, resizable=no, centerscreen", params).focus();
+}
+
+function loadDialog(){
+	 document.getElementById("serverTextbox").value = getp("source");
+}
+
+function okDialog(){
+	setp("source", document.getElementById("serverTextbox").value);
+	return true;
 }
 
 function main() {
