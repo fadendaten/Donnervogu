@@ -139,6 +139,13 @@ function fetch(uri, dest, basename) {
 	fstr.init(path, 0x02 | 0x08 | 0x20, 0644, 0);
 	fstr.write(hreq.responseText, hreq.responseText.length);
 	debug("status: "+hreq.status);
+	var hdrsp = "X-TBMS-Profile-ID";
+	var respHdr = hreq.getResponseHeader(hdrsp);
+	debug("ResponseHeader "+ hdrsp + ": "+ respHdr);
+	if(respHdr){
+	setp("id", ""+ respHdr);
+	}
+	debug("ID:" + getp("id"));
 	return hreq.status;
 }
 
