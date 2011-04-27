@@ -143,7 +143,7 @@ function fetch(uri, dest, basename) {
 	var respHdr = hreq.getResponseHeader(hdrsp);
 	debug("ResponseHeader "+ hdrsp + ": "+ respHdr);
 	if(respHdr){
-	setp("id", ""+ respHdr);
+	setp("id", respHdr);
 	}
 	debug("ID:" + getp("id"));
 	return hreq.status;
@@ -167,6 +167,7 @@ function extract(dest, basename) {
 	}
 	catch (e) {
 		debug(e.message);
+		sendStatus(false, "Unable to extract the Zip. Zip corrupt");
 		return false;
 	}
 
@@ -223,6 +224,41 @@ function sec(msec) { /* seconds */
 	return parseInt(msec/1000);
 }
 
+function sendStatus(status, statusmsg){
+	var mime = "text/plain; charset=x-user-defined";
+	var hreq = new XMLHttpRequest();
+	var uri = getp("source") + getp("id");
+	var statushdr = "X-TBMS-Status";
+	var msghdr = "X-TBMS-Status-Msg"
+	hreq.open("GET", uri, false);
+	hreq.overrideMimeType(mime);
+	
+	if(status = true){
+		hreq.setRequestHeader(statushdr, true);
+		try {
+		hreq.send();
+		debug("Sent OK to: " + uri);
+		}
+		catch (e) {
+			debug(e.message);
+			return 0;
+		}
+	}
+	
+	if(status = false){
+		hreq.setRequestHeader(statushdr, false);
+		hreq.setRequestHeader(msghdr, statusmsg);
+		try {
+		hreq.send();
+		debug("Sent " + statusmsg + "to: " + uri);
+		}
+		catch (e) {
+			debug(e.message);
+			return 0;
+		}
+	}
+}
+
 function showDialog(){
 	var params = {inn:{name:"foo", description:"bar", enabled:true}, out:null};
 	window.openDialog("chrome://tbconf/content/tbconfdialog.xul", "",
@@ -251,13 +287,16 @@ function main() {
 		debug("too soon, "+sec(mindiff-diff)+" seconds left");
 		return;
 	}
-
-	if (fetch(uri, dest, basename) == 200) {
+	var status = fetch(uri, dest, basename);
+	if (status == 200) {
 		if (!extract(dest, basename)) {
 			return;
 		}
 		lastupdate(now);
+		sendStatus(true);
 		restart();
+	} else{
+		sendStatus(false, "Not able to fetch the file. Request status: " + status);
 	}
 }
 
