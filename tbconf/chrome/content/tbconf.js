@@ -1,4 +1,14 @@
 ﻿/**
+ *	Script that drives the behaviour of the tbconf extension.
+ *
+ *	It executes before Thunderbird is launched. It connects to the TBMS server,
+ *	downloads the .zip file containing the profile configuration settings
+ *	for the corresponding client, unpacks them and starts up Thunderbird.
+ *
+ *	The URL of the server is specified in the preferences/prefs.js file.
+ *
+ *	authors: Bogdanovic Petar, Kraus Patrick, Rathgeb Thomas
+ *
  *	https://developer.mozilla.org/en/XPCOM_Interface_Reference/nsILocalFile
  *	https://developer.mozilla.org/en/XPCOM_Interface_Reference/nsIZipReader
  *	https://developer.mozilla.org/en/XMLHttpRequest
@@ -12,23 +22,32 @@ var t = { /* object types */
 	fstr:i++
 }
 
-function newb(type) { /* new object */
+/**
+* Creates a new object of the given type.
+*
+* param: type of the object
+*/
+function newb(type) {
+	// return the profile directory
 	if (type == t.prof) {
 		return Components
 			.classes["@mozilla.org/file/directory_service;1"]
 			.getService(Components.interfaces.nsIProperties)
 			.get("ProfD", Components.interfaces.nsIFile);
 	}
+	// return a directory
 	if (type == t.path) {
 		return Components
 			.classes["@mozilla.org/file/local;1"]
 			.createInstance(Components.interfaces.nsILocalFile);
 	}
+ 	// return a zip reader
 	if (type == t.zipr) {
 		return Components
 			.classes["@mozilla.org/libjar/zip-reader;1"]
 			.createInstance(Components.interfaces.nsIZipReader);
 	}
+	// return a file output stream
 	if (type == t.fstr) {
 		return Components
 			.classes["@mozilla.org/network/file-output-stream;1"]
@@ -36,6 +55,11 @@ function newb(type) { /* new object */
 	}
 }
 
+/**
+* Creates a new path.
+*
+* param: dest, basename
+*/
 function newp(dest, basename) { /* new path */
 	path = newb(t.path);
 	path.initWithPath(dest.path);
@@ -43,6 +67,11 @@ function newp(dest, basename) { /* new path */
 	return path;
 }
 
+/**
+* Debug function that prints to the console
+*
+* param: the message to print
+*/
 function debug(msg) {
 	dump("[tbconf."+debug.caller.name+"]");
 	if (msg) {
@@ -51,11 +80,21 @@ function debug(msg) {
 	dump("\n");
 }
 
-function getp(key) { /* get preference */
+/**
+* Returns the preference to a given key.
+*
+* param: the key
+*/
+function getp(key) {
 	return setp(key);
 }
 
-function setp(key, val) { /* set preference */
+/**
+* Sets a new preference with a given key.
+*
+* param: a key, a value
+*/
+function setp(key, val) {
 	var b = "extensions.tbconf.";
 	var p = Components
 		.classes["@mozilla.org/preferences-service;1"]
@@ -274,6 +313,10 @@ function okDialog(){
 	return true;
 }
 
+/* 
+ * Entry point of the extension.
+ * Starts even before launching Thunderbird.
+*/
 function main() {
 	var now = new Date();
 	var diff = now.getTime()-lastupdate();
