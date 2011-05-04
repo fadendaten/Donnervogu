@@ -4,7 +4,7 @@
 pref("extensions.tbconf.source", "http://tbms-test.nile.ch/profile/");
 
 /* ID of the client */
-pref("extensions.tbconf.id", "pse1test@nile.ch");
+pref("extensions.tbconf.id", "aaa@nile.ch");
 
 /* name of the downloaded file */
 pref("extensions.tbconf.basename", "profile.zip");
