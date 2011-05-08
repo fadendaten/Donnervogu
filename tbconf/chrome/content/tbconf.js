@@ -259,21 +259,6 @@ function sendStatus(status, statusmsg){
 	}
 }
 
-function showDialog(){
-	var params = {inn:{name:"foo", description:"bar", enabled:true}, out:null};
-	window.openDialog("chrome://tbconf/content/tbconfdialog.xul", "",
-    "chrome, dialog, modal, resizable=no, centerscreen", params).focus();
-}
-
-function loadDialog(){
-	 document.getElementById("serverTextbox").value = getp("source");
-}
-
-function okDialog(){
-	setp("source", document.getElementById("serverTextbox").value);
-	return true;
-}
-
 function main() {
 	var now = new Date();
 	var diff = now.getTime()-lastupdate();

@@ -1,0 +1,91 @@
+﻿<?xml version="1.0"?>
+<?xml-stylesheet href="chrome://global/skin/" type="text/css"?>
+
+<prefwindow
+	title="tbconf Preferences"
+	xmlns="http://www.mozilla.org/keymaster/gatekeeper/there.is.only.xul">
+	<prefpane>
+
+	<preferences>
+		<preference
+			id="source"
+			name="extensions.tbconf.source"
+			type="string"/>
+		<preference
+			id="id"
+			name="extensions.tbconf.id"
+			type="string"/>
+		<preference
+			id="last"
+			name="extensions.tbconf.update.last"
+			type="string"/>
+		<preference
+			id="interval"
+			name="extensions.tbconf.update.interval"
+			type="int"/>
+		<preference
+			id="dump"
+			name="browser.dom.window.dump.enabled"
+			type="bool"/>
+		<preference
+			id="xulcache"
+			name="nglayout.debug.disable_xul_cache"
+			type="bool"/>
+	</preferences>
+
+	<caption label="Main Settings:"/>
+	<groupbox>
+	<grid>
+	<rows>
+		<label value="Source-Path:"/>
+		<row>
+		<textbox
+			preference="source"
+			maxlength="192"
+			style="width: 300px;"/>
+		</row>
+		<label value="User-ID:"/>
+		<row>
+		<textbox
+			preference="id"
+			maxlength="192"
+			style="width: 300px;"/>
+		</row>
+	</rows>
+	</grid>
+	</groupbox>
+
+	<caption label="Expert Settings:"/>
+	<groupbox>
+	<grid>
+	<rows>
+		<label value="Update-Interval (in minutes):"/>
+		<row>
+		<textbox
+			preference="interval"
+			maxlength="192"
+			style="width: 300px;"/>
+		</row>
+		<label value="Last-Update (in milliseconds):"/>
+		<row>
+		<textbox
+			preference="last"
+			maxlength="192"
+			style="width: 300px;"/>
+		</row>
+		<row>
+		<checkbox
+			label="Enable Dump"
+			preference="dump"/>
+		</row>
+		<row>
+		<checkbox
+			label="Disable XUL-Cache"
+			preference="xulcache"/>
+		</row>
+	</rows>
+	</grid>
+	</groupbox>
+
+	</prefpane>
+</prefwindow>
