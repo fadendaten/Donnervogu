@@ -1,4 +1,14 @@
 ﻿/**
+ *	Script that drives the behaviour of the tbconf extension.
+ *
+ *	It executes before Thunderbird is launched. It connects to the TBMS server,
+ *	downloads the .zip file containing the profile configuration settings
+ *	for the corresponding client, unpacks them and starts up Thunderbird.
+ *
+ *	The URL of the server is specified in the preferences/prefs.js file.
+ *
+ *	authors: Bogdanovic Petar, Kraus Patrick, Rathgeb Thomas
+ *
  *	https://developer.mozilla.org/en/XPCOM_Interface_Reference/nsILocalFile
  *	https://developer.mozilla.org/en/XPCOM_Interface_Reference/nsIZipReader
  *	https://developer.mozilla.org/en/XMLHttpRequest
