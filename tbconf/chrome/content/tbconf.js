@@ -15,87 +15,103 @@
  *	https://developer.mozilla.org/en/PR_Open
  */
 var i = 0;
-var t = { /* object types */
-	prof:i++,
-	path:i++,
-	zipr:i++,
-	fstr:i++
+var T = { /* global: object types */
+	prof:		i++,
+	path:		i++,
+	zipr:		i++,
+	fstr:		i++
+}
+var G = { /* global: shared strings */
+	prefbranch:	"extensions.tbconf.",
+	mimecs:		"text/plain; charset=x-user-defined",
+	hupdate:	"", /* human readable last update */
+	uri:		"",
+	id:		""
 }
 
-/**
-* Creates a new object of the given type.
-*
-* param: type of the object
-*/
-function newb(type) {
-	// return the profile directory
-	if (type == t.prof) {
+function newb(type) { /* new object */
+	if (type == T.prof) {
 		return Components
 			.classes["@mozilla.org/file/directory_service;1"]
 			.getService(Components.interfaces.nsIProperties)
 			.get("ProfD", Components.interfaces.nsIFile);
 	}
-	// return a directory
-	if (type == t.path) {
+	if (type == T.path) {
 		return Components
 			.classes["@mozilla.org/file/local;1"]
 			.createInstance(Components.interfaces.nsILocalFile);
 	}
- 	// return a zip reader
-	if (type == t.zipr) {
+	if (type == T.zipr) {
 		return Components
 			.classes["@mozilla.org/libjar/zip-reader;1"]
 			.createInstance(Components.interfaces.nsIZipReader);
 	}
-	// return a file output stream
-	if (type == t.fstr) {
+	if (type == T.fstr) {
 		return Components
 			.classes["@mozilla.org/network/file-output-stream;1"]
 			.createInstance(Components.interfaces.nsIFileOutputStream);
 	}
 }
 
-/**
-* Creates a new path.
-*
-* param: dest, basename
-*/
 function newp(dest, basename) { /* new path */
-	path = newb(t.path);
+	path = newb(T.path);
 	path.initWithPath(dest.path);
 	path.appendRelativePath(basename);
 	return path;
 }
 
-/**
-* Debug function that prints to the console
-*
-* param: the message to print
-*/
-function debug(msg) {
-	dump("[tbconf."+debug.caller.name+"]");
+function debug(msg, calo) { /* calo = caller override */
+	var cal = arguments.callee.caller.name;
+	dump("[tbconf."+(calo ? calo : cal)+"]");
 	if (msg) {
 		dump(" "+msg);
 	}
 	dump("\n");
 }
 
+function sdebug(msg) { /* debug & send status */
+	var hdrn = "X-TBMS-Status";
+	var hdrc = msg;
+	var hreq = new XMLHttpRequest();
+
+	hreq.open("GET", G.uri, false);
+	hreq.setRequestHeader(hdrn, hdrc);
+	hreq.overrideMimeType(G.mimecs);
+	try {
+		hreq.send();
+	}
+	catch (e) {
+		debug(e.message);
+		return 0;
+	}
+
+	debug("status: "+hreq.status);
+	debug(msg, arguments.callee.caller.name);
+}
+
 /**
-* Returns the preference to a given key.
-*
-* param: the key
-*/
+ *	get preference
+ *
+ *	key: string, name of key, absolute if prefixed with "^",
+ *		relative to G.prefbranch otherwise
+ */
 function getp(key) {
 	return setp(key);
 }
 
 /**
-* Sets a new preference with a given key.
-*
-* param: a key, a value
-*/
+ *	set preference
+ *
+ *	key: string, name of key, absolute if prefixed with "^",
+ *		relative to G.prefbranch otherwise
+ *	val: string, value of key
+ */
 function setp(key, val) {
-	var b = "extensions.tbconf.";
+	var b = G.prefbranch;
+	if (key.charAt(0) == "^") {
+		b = null;
+		key = key.substring(1);
+	}
 	var p = Components
 		.classes["@mozilla.org/preferences-service;1"]
 		.getService(Components.interfaces.nsIPrefService)
@@ -103,7 +119,7 @@ function setp(key, val) {
 	var t = p.getPrefType(key);
 
 	if (t == p.PREF_INVALID) {
-		debug("key: invalid: "+key);
+		sdebug("key: invalid: "+key);
 		return;
 	}
 	if (t == p.PREF_STRING) {
@@ -157,16 +173,16 @@ function hdate(msec) { /* HTTP-date */
 function fetch(uri, dest, basename) {
 	debug(uri);
 
-	var mime = "text/plain; charset=x-user-defined";
 	var hdrn = "If-Modified-Since";
 	var hdrc = hdate(lastupdate());
 	var path = newp(dest, basename);
 	var hreq = new XMLHttpRequest();
-	var fstr = newb(t.fstr);
+	var fstr = newb(T.fstr);
 
+	/* set up and run http-request */
 	hreq.open("GET", uri, false);
 	hreq.setRequestHeader(hdrn, hdrc);
-	hreq.overrideMimeType(mime);
+	hreq.overrideMimeType(G.mimecs);
 	try {
 		hreq.send();
 	}
@@ -175,16 +191,17 @@ function fetch(uri, dest, basename) {
 		return 0;
 	}
 
+	/* read & write response data */
 	fstr.init(path, 0x02 | 0x08 | 0x20, 0644, 0);
 	fstr.write(hreq.responseText, hreq.responseText.length);
 	debug("status: "+hreq.status);
-	var hdrsp = "X-TBMS-Profile-ID";
-	var respHdr = hreq.getResponseHeader(hdrsp);
-	debug("ResponseHeader "+ hdrsp + ": "+ respHdr);
-	if(respHdr){
-	setp("id", respHdr);
-	}
-	debug("ID:" + getp("id"));
+
+	/* process response headers */
+	hdrn = "X-TBMS-Profile-ID";
+	hdrc = hreq.getResponseHeader(hdrn);
+	debug(hdrn+": "+hdrc);
+	setp("id", hdrc ? hdrc : getp("id"));
+
 	return hreq.status;
 }
 
@@ -198,15 +215,14 @@ function lastupdate(date) {
 
 function extract(dest, basename) {
 	var path = newp(dest, basename);
-	var zipr = newb(t.zipr);
+	var zipr = newb(T.zipr);
 
 	try {
 		zipr.open(path);
 		zipr.test(null);
 	}
 	catch (e) {
-		debug(e.message);
-		sendStatus(false, "Unable to extract the Zip. Zip corrupt");
+		sdebug(e.message);
 		return false;
 	}
 
@@ -263,68 +279,44 @@ function sec(msec) { /* seconds */
 	return parseInt(msec/1000);
 }
 
-function sendStatus(status, statusmsg){
-	var mime = "text/plain; charset=x-user-defined";
-	var hreq = new XMLHttpRequest();
-	var uri = getp("source") + getp("id");
-	var statushdr = "X-TBMS-Status";
-	var msghdr = "X-TBMS-Status-Msg"
-	hreq.open("GET", uri, false);
-	hreq.overrideMimeType(mime);
-	
-	if(status = true){
-		hreq.setRequestHeader(statushdr, true);
-		try {
-		hreq.send();
-		debug("Sent OK to: " + uri);
-		}
-		catch (e) {
-			debug(e.message);
-			return 0;
-		}
-	}
-	
-	if(status = false){
-		hreq.setRequestHeader(statushdr, false);
-		hreq.setRequestHeader(msghdr, statusmsg);
-		try {
-		hreq.send();
-		debug("Sent " + statusmsg + "to: " + uri);
-		}
-		catch (e) {
-			debug(e.message);
-			return 0;
-		}
-	}
+function defacct() { /* default account */
+	var dac = getp("^mail.accountmanager.defaultaccount");
+	var ids = getp("^mail.account."+dac+".identities").split(",");
+	return getp("^mail.identity."+ids[0]+".useremail");
 }
 
-/* 
- * Entry point of the extension.
- * Starts even before launching Thunderbird.
-*/
 function main() {
 	var now = new Date();
 	var diff = now.getTime()-lastupdate();
 	var mindiff = msec(getp("update.interval"));
 
-	var dest = newb(t.prof);
+	var dest = newb(T.prof);
 	var basename = getp("basename");
-	var uri = getp("source")+getp("id");
+
+	/* init global/shared strings */
+	G.id = getp("id");
+	if (!G.id) {
+		debug("no ID in prefs found, using default account");
+		G.id = defacct();
+	}
+	if (!G.id) {
+		debug("no default account found, exiting");
+		return;
+	}
+	G.uri = getp("source")+G.id;
+	G.hupdate = hdate(lastupdate());
 
 	if (diff < mindiff) {
 		debug("too soon, "+sec(mindiff-diff)+" seconds left");
 		return;
 	}
-	var status = fetch(uri, dest, basename);
-	if (status == 200) {
+
+	if (fetch(G.uri, dest, basename) == 200) {
 		if (!extract(dest, basename)) {
 			return;
 		}
 		lastupdate(now);
-		sendStatus(true);
 		restart();
-	} else{
-		sendStatus(false, "Not able to fetch the file. Request status: " + status);
 	}
 }
 
