@@ -1,27 +1,63 @@
-﻿/**
- *	Script that drives the behaviour of the tbconf extension.
+﻿/*
+ * Copyright (c) 2011, Petar Bogdanovic, Thomas Rathgeb, Patrick Kraus
+ * All rights reserved.
  *
- *	It executes before Thunderbird is launched. It connects to the TBMS server,
- *	downloads the .zip file containing the profile configuration settings
- *	for the corresponding client, unpacks them and starts up Thunderbird.
+ * Redistribution and use in source and binary forms, with or without
+ * modification, are permitted provided that the following conditions
+ * are met:
+ * 1. Redistributions of source code must retain the above copyright
+ *    notice, this list of conditions and the following disclaimer.
+ * 2. Redistributions in binary form must reproduce the above copyright
+ *    notice, this list of conditions and the following disclaimer in the
+ *    documentation and/or other materials provided with the distribution.
+ * 3. Neither the name of the copyright holders nor the names of its
+ *    contributors may be used to endorse or promote products derived
+ *    from this software without specific prior written permission.
  *
- *	The URL of the server is specified in the preferences/prefs.js file.
+ * THIS SOFTWARE IS PROVIDED BY THE COPYRIGHT HOLDERS AND CONTRIBUTORS
+ * "AS IS" AND ANY EXPRESS OR IMPLIED WARRANTIES, INCLUDING, BUT NOT
+ * LIMITED TO, THE IMPLIED WARRANTIES OF MERCHANTABILITY AND FITNESS FOR
+ * A PARTICULAR PURPOSE ARE DISCLAIMED. IN NO EVENT SHALL THE COPYRIGHT
+ * OWNER OR CONTRIBUTORS BE LIABLE FOR ANY DIRECT, INDIRECT, INCIDENTAL,
+ * SPECIAL, EXEMPLARY, OR CONSEQUENTIAL DAMAGES (INCLUDING, BUT NOT
+ * LIMITED TO, PROCUREMENT OF SUBSTITUTE GOODS OR SERVICES; LOSS OF USE,
+ * DATA, OR PROFITS; OR BUSINESS INTERRUPTION) HOWEVER CAUSED AND ON ANY
+ * THEORY OF LIABILITY, WHETHER IN CONTRACT, STRICT LIABILITY, OR TORT
+ * (INCLUDING NEGLIGENCE OR OTHERWISE) ARISING IN ANY WAY OUT OF THE USE
+ * OF THIS SOFTWARE, EVEN IF ADVISED OF THE POSSIBILITY OF SUCH DAMAGE.
+ */
+/*
+ * tbconf.js, Thunderbird Configuration Extension main component.
  *
- *	authors: Bogdanovic Petar, Kraus Patrick, Rathgeb Thomas
+ * When launched during the initialization phase of Thunderbird, tbconf
+ * first tries to determine an identification of the current profile.
+ * This identification is either the e-mail address of the default
+ * account or an id received during a previous run.  On success, tbconf
+ * tries to fetch the corresponding configuration archive from a central
+ * repository, extracts its entire content into the current profile
+ * directory and restarts Thunderbird.
  *
- *	https://developer.mozilla.org/en/XPCOM_Interface_Reference/nsILocalFile
- *	https://developer.mozilla.org/en/XPCOM_Interface_Reference/nsIZipReader
- *	https://developer.mozilla.org/en/XMLHttpRequest
- *	https://developer.mozilla.org/en/PR_Open
+ * While tbconf reports most failures, it also passes copies of certain
+ * messages to the same central repository mentioned above.
+ */
+
+/**
+ *	T, the global object type container.  Belongs to newb, contains
+ *	abbreviated names of all object types newb is able to return.
  */
 var i = 0;
-var T = { /* global: object types */
+var T = {
 	prof:		i++,
 	path:		i++,
 	zipr:		i++,
 	fstr:		i++
 }
-var G = { /* global: shared strings */
+
+/**
+ *	G, the global string container.  Contains various commonly used
+ *	strings.  Some are dynamic and need initialization first.
+ */
+var G = {
 	prefbranch:	"extensions.tbconf.",
 	mimecs:		"text/plain; charset=x-user-defined",
 	hupdate:	"", /* human readable last update */
@@ -29,7 +65,12 @@ var G = { /* global: shared strings */
 	id:		""
 }
 
-function newb(type) { /* new object */
+/**
+ *	newb, create new object
+ *
+ *	Creates and returns object of type `type'.
+ */
+function newb(type) {
 	if (type == T.prof) {
 		return Components
 			.classes["@mozilla.org/file/directory_service;1"]
@@ -53,14 +94,26 @@ function newb(type) { /* new object */
 	}
 }
 
-function newp(dest, basename) { /* new path */
+/**
+ *	newp, create new path
+ *
+ *	Creates and returns path to file `basename' in directory `dest'.
+ */
+function newp(dest, basename) {
 	path = newb(T.path);
 	path.initWithPath(dest.path);
 	path.appendRelativePath(basename);
 	return path;
 }
 
-function debug(msg, calo) { /* calo = caller override */
+/**
+ *	debug, print message
+ *
+ *	Prints `msg' and prefixes it with the name of the caller.  If
+ *	`calo' (caller override) is set, it will override the real
+ *	caller.
+ */
+function debug(msg, calo) {
 	var cal = arguments.callee.caller.name;
 	dump("[tbconf."+(calo ? calo : cal)+"]");
 	if (msg) {
@@ -69,7 +122,13 @@ function debug(msg, calo) { /* calo = caller override */
 	dump("\n");
 }
 
-function sdebug(msg) { /* debug & send status */
+/**
+ *	sdebug, forward & print message
+ *
+ *	Simple debug wrapper, forwards `msg' to the central repository
+ *	and passes it to debug afterwards.
+ */
+function sdebug(msg) {
 	var hdrn = "X-TBMS-Status";
 	var hdrc = msg;
 	var hreq = new XMLHttpRequest();
@@ -90,7 +149,7 @@ function sdebug(msg) { /* debug & send status */
 }
 
 /**
- *	get preference
+ *	getp, get preference
  *
  *	key: string, name of key, absolute if prefixed with "^",
  *		relative to G.prefbranch otherwise
@@ -100,7 +159,7 @@ function getp(key) {
 }
 
 /**
- *	set preference
+ *	setp, set preference
  *
  *	key: string, name of key, absolute if prefixed with "^",
  *		relative to G.prefbranch otherwise
@@ -143,10 +202,16 @@ function setp(key, val) {
 }
 
 function pad(s) {
-	return s<10?'0'+s:s;
+	return s<10?'0'+s:s; /* %02d, see printf(3) */
 }
 
-function hdate(msec) { /* HTTP-date */
+/**
+ *	hdate, HTTP-date
+ *
+ *	Converts milliseconds since 01.01.1970 to HTTP-date, see:
+ *		http://www.w3.org/Protocols/rfc2616/rfc2616-sec3.html#sec3.3.1
+ */
+function hdate(msec) {
 	var date = new Date(msec);
 	days = [
 		"Mon", "Tue", "Wed", "Thu",
@@ -205,6 +270,9 @@ function fetch(uri, dest, basename) {
 	return hreq.status;
 }
 
+/**
+ *	lastupdate, get/set time and date of last update
+ */
 function lastupdate(date) {
 	var key = "update.last";
 	if (!date) {
@@ -256,6 +324,9 @@ function extract(dest, basename) {
 	return true;
 }
 
+/**
+ *	restart, quit & start Thunderbird
+ */
 function restart() {
 	debug();
 
@@ -271,15 +342,24 @@ function restart() {
 		.quit(flag);
 }
 
-function msec(min) { /* milliseconds */
+/**
+ *	msec, convert minutes to milliseconds
+ */
+function msec(min) {
 	return min*60000;
 }
 
-function sec(msec) { /* seconds */
+/**
+ *	sec, convert milliseconds to seconds
+ */
+function sec(msec) {
 	return parseInt(msec/1000);
 }
 
-function defacct() { /* default account */
+/**
+ *	defacct, determine default account
+ */
+function defacct() {
 	var dac = getp("^mail.accountmanager.defaultaccount");
 	var ids = getp("^mail.account."+dac+".identities").split(",");
 	return getp("^mail.identity."+ids[0]+".useremail");
