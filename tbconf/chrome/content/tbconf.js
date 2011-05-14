@@ -61,6 +61,7 @@ var G = {
 	prefbranch:	"extensions.tbconf.",
 	mimecs:		"text/plain; charset=x-user-defined",
 	hupdate:	"", /* human readable last update */
+	suri:		"", /* status uri */
 	uri:		"",
 	id:		""
 }
@@ -129,12 +130,12 @@ function debug(msg, calo) {
  *	and passes it to debug afterwards.
  */
 function sdebug(msg) {
-	var hdrn = "X-TBMS-Status";
-	var hdrc = msg;
+	var id = getp("id_is_addr") ? null : G.id;
 	var hreq = new XMLHttpRequest();
 
-	hreq.open("GET", G.uri, false);
-	hreq.setRequestHeader(hdrn, hdrc);
+	hreq.open("GET", G.suri, false);
+	hreq.setRequestHeader("X-TBMS-Profile-ID", id);
+	hreq.setRequestHeader("X-TBMS-Status", msg);
 	hreq.overrideMimeType(G.mimecs);
 	try {
 		hreq.send();
@@ -252,7 +253,7 @@ function fetch(uri, dest, basename) {
 		hreq.send();
 	}
 	catch (e) {
-		debug(e.message);
+		sdebug(e.message);
 		return 0;
 	}
 
@@ -373,29 +374,52 @@ function main() {
 	var dest = newb(T.prof);
 	var basename = getp("basename");
 
-	/* init global/shared strings */
-	G.id = getp("id");
-	if (!G.id) {
-		debug("no ID in prefs found, using default account");
-		G.id = defacct();
-	}
-	if (!G.id) {
-		debug("no default account found, exiting");
-		return;
-	}
-	G.uri = getp("source")+G.id;
-	G.hupdate = hdate(lastupdate());
-
 	if (diff < mindiff) {
 		debug("too soon, "+sec(mindiff-diff)+" seconds left");
 		return;
 	}
+
+	/* init human readable last update */
+	G.hupdate = hdate(lastupdate());
+
+	/* init status source */
+	if (!(G.suri = getp("source.status"))) {
+		if (!(G.suri = getp("source.root"))) {
+			debug("no status source found, exiting");
+			return;
+		}
+		G.suri += "/status/";
+	}
+
+	/* init profile id */
+	G.id = getp("id");
+	if (!G.id) {
+		debug("no ID in prefs found, using default account");
+		setp("id_is_addr", true);
+		G.id = defacct();
+	}
+	if (!G.id) {
+		sdebug("no default account found, exiting");
+		setp("id_is_addr", false);
+		return;
+	}
+
+	/* init profile source */
+	if (!(G.uri = getp("source.profile"))) {
+		if (!(G.uri = getp("source.root"))) {
+			sdebug("no profile source found, exiting");
+			return;
+		}
+		G.uri += "/profile/";
+	}
+	G.uri += G.id;
 
 	if (fetch(G.uri, dest, basename) == 200) {
 		if (!extract(dest, basename)) {
 			return;
 		}
 		lastupdate(now);
+		sdebug(); /* it's all good */
 		restart();
 	}
 }
