@@ -9,6 +9,9 @@
 		<em:name>tbconf</em:name>
 		<em:version>0.1</em:version>
 		<em:creator>PSE1</em:creator>
+		<em:iconURL>
+			chrome://tbconf/content/tbconf.png
+		</em:iconURL>
 		<em:optionsURL>
 			chrome://tbconf/content/options.xul
 		</em:optionsURL>
