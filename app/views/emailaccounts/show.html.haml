@@ -1,0 +1,50 @@
+%notice
+  = flash[:notice]
+  %br
+  %br
+%h2 Account
+%br
+= link_to 'Back', emailaccounts_path
+|
+= link_to 'Delete', @profile, :method => :delete ,:confirm => "Do you really want to delete \"#{@profile.email}\"?"
+|
+= link_to "Copy groups settings", reset_account_path(@profile), :confirm => "Do you really want to reset the settings?"
+%hr
+%br
+%table
+  %tr
+    %td
+      %b Email:
+    %td
+      = @profile.email
+  %tr
+    %td
+      %b Name:
+    %td
+      = @profile.name
+  %tr
+    %td
+      %b Group:
+    %td= link_to @profile.group.to_s, group_path(@profile.group)
+%br
+-if not @profile.profile_ids.empty?
+  %table.users
+    %tr
+      %th ID
+      %th Last downloaded
+      %th Outdated
+      %th Offline
+    - @profile.profile_ids.each do |each|
+      %tr{:class => each.offline? ? "outdated" : "uptodate"}
+        %td= each.id
+        %td= time_ago_in_words each.time_of_last_ok
+        %td= each.outdated? ? "yes" : "no"
+        %td{:class => each.offline? ? "outdated" : "uptodate"}= each.offline? ? "yes" : "no"
+%br
+%hr
+%br
+= render "shared/preferences"
+%hr
+= render 'shared/general_information'
+%br 
+  = link_to 'Back', emailaccounts_path
